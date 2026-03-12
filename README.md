@@ -42,68 +42,6 @@ CLI output with rich formatting and progress bars
 🧰 Tech Stack
 LayerTechnologyLanguagePython 3.11+Web FrameworkFastAPIASGI ServerUvicornHTTP Clienthttpx (async, HTTP/2 support)DatabaseSQLite via SQLAlchemy ORMHTML ParsingBeautifulSoup4 + lxmlTemplatingJinja2CLIClickTerminal UIRich (progress bars, panels, tables)ConfigPyYAMLLoggingstructlogFrontendVanilla JS, Chart.js, CSS custom propertiesRealtimeWebSocket (native FastAPI)
 
-📁 Project Structure
-webscan/
-├── api/
-│   ├── main.py              # FastAPI app, REST endpoints, WebSocket handler
-│   └── database.py          # SQLAlchemy models (ScanJob, Vulnerability)
-│
-├── core/
-│   ├── crawler.py           # Async web crawler (BFS, form extraction)
-│   └── scheduler/
-│       ├── rate_limiter.py  # Token Bucket rate limiter
-│       └── retry.py         # Exponential backoff retry decorator
-│
-├── detection/
-│   ├── waf_detector.py      # WAF fingerprinting engine
-│   ├── cvss_calculator.py   # CVSS v3.1 base score calculator
-│   ├── payload_mutator.py   # WAF bypass payload mutation
-│   └── response_differ.py   # Response similarity analysis
-│
-├── modules/                 # 17 scan modules (one file per vulnerability class)
-│   ├── sqli.py
-│   ├── xss.py
-│   ├── sqli_blind_time.py
-│   ├── ssrf.py
-│   ├── csrf.py
-│   ├── idor.py
-│   ├── cors.py
-│   ├── jwt_analyzer.py
-│   ├── graphql.py
-│   ├── api_fuzzer.py
-│   ├── ssti.py
-│   ├── lfi.py
-│   ├── xxe.py
-│   ├── subdomain_takeover.py
-│   ├── sensitive_files.py
-│   ├── headers.py
-│   └── open_redirect.py
-│
-├── reports/
-│   ├── generator.py         # HTML/JSON report generator
-│   └── templates/
-│       └── report.html      # Jinja2 report template
-│
-├── utils/
-│   ├── config_loader.py     # YAML config loader with deep merge
-│   ├── deduplicator.py      # Finding dedup + FP suppression
-│   └── logger.py            # structlog setup
-│
-├── ui/                      # Web dashboard (static HTML/CSS/JS)
-│   ├── index.html           # Dashboard / command center
-│   ├── scan.html            # New scan page with live terminal
-│   ├── history.html         # Scan history with compare feature
-│   └── assets/
-│       ├── style.css        # Dark cyber terminal aesthetic
-│       └── app.js           # Shared JS utilities
-│
-├── scanner.py               # Core engine v2 (Phase 1+2)
-├── scanner_v2.py            # Core engine v3 (Phase 1+2+3 + dedup)
-├── main.py                  # CLI entry point (Click)
-├── run.py                   # Dashboard server launcher
-├── config.yaml              # Default scanner configuration
-└── requirements.txt
-
 1. Clone the repository
 bashgit clone https://github.com/yourusername/webscan.git
 cd webscan
