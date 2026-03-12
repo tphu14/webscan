@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vulnerability Report — {{ target }}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #ff3c5f;
+    --accent2: #f59e0b;
+    --accent3: #10b981;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --critical: #ff3c5f;
+    --high: #f97316;
+    --medium: #f59e0b;
+    --low: #10b981;
+    --info: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1f 50%, #0a0f1a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 64px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,60,95,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-meta {
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex; gap: 32px; flex-wrap: wrap;
+  }
+  .header-meta b { color: var(--text); }
+
+  /* STATS GRID */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-card {
+    background: var(--surface);
+    padding: 32px 28px;
+    position: relative;
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 2px;
+  }
+  .stat-card.critical::after { background: var(--critical); }
+  .stat-card.high::after { background: var(--high); }
+  .stat-card.medium::after { background: var(--medium); }
+  .stat-card.low::after { background: var(--low); }
+  .stat-card.total::after { background: var(--info); }
+
+  .stat-num {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .stat-card.critical .stat-num { color: var(--critical); }
+  .stat-card.high .stat-num { color: var(--high); }
+  .stat-card.medium .stat-num { color: var(--medium); }
+  .stat-card.low .stat-num { color: var(--low); }
+  .stat-card.total .stat-num { color: var(--info); }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* MAIN CONTENT */
+  .main { padding: 48px 64px; max-width: 1400px; }
+
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* VULN TABLE */
+  .vuln-group { margin-bottom: 48px; }
+  .vuln-group-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .badge.CRITICAL { background: rgba(255,60,95,0.2); color: var(--critical); border: 1px solid rgba(255,60,95,0.4); }
+  .badge.HIGH { background: rgba(249,115,22,0.2); color: var(--high); border: 1px solid rgba(249,115,22,0.4); }
+  .badge.MEDIUM { background: rgba(245,158,11,0.2); color: var(--medium); border: 1px solid rgba(245,158,11,0.4); }
+  .badge.LOW { background: rgba(16,185,129,0.2); color: var(--low); border: 1px solid rgba(16,185,129,0.4); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+  }
+  th {
+    padding: 14px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  td {
+    padding: 16px;
+    vertical-align: top;
+  }
+  td.url-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    word-break: break-all;
+    max-width: 300px;
+  }
+  td.payload-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 200px;
+    word-break: break-all;
+  }
+
+  /* URLS SECTION */
+  .url-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 8px;
+    margin-top: 0;
+  }
+  .url-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    word-break: break-all;
+  }
+
+  .no-vuln {
+    padding: 32px;
+    text-align: center;
+    color: var(--low);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    border: 1px dashed rgba(16,185,129,0.3);
+    border-radius: 4px;
+  }
+
+  .footer {
+    padding: 32px 64px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">// Security Assessment Report</div>
+  <h1>Vulnerability<br><span>Scanner Report</span></h1>
+  <div class="header-meta">
+    <span>Target: <b>{{ target }}</b></span>
+    <span>Scanned: <b>{{ scan_time }}</b></span>
+    <span>URLs Crawled: <b>{{ total_urls }}</b></span>
+    <span>Forms Found: <b>{{ total_forms }}</b></span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-card total">
+    <div class="stat-num">{{ total_vulns }}</div>
+    <div class="stat-label">Total Issues</div>
+  </div>
+  <div class="stat-card critical">
+    <div class="stat-num">{{ severity_counts.CRITICAL }}</div>
+    <div class="stat-label">Critical</div>
+  </div>
+  <div class="stat-card high">
+    <div class="stat-num">{{ severity_counts.HIGH }}</div>
+    <div class="stat-label">High</div>
+  </div>
+  <div class="stat-card medium">
+    <div class="stat-num">{{ severity_counts.MEDIUM }}</div>
+    <div class="stat-label">Medium</div>
+  </div>
+  <div class="stat-card low">
+    <div class="stat-num">{{ severity_counts.LOW }}</div>
+    <div class="stat-label">Low</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- VULNERABILITIES -->
+  <div class="section-title">01 — Discovered Vulnerabilities</div>
+
+  {% if vulnerabilities %}
+    {% set severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] %}
+    {% for sev in severities %}
+      {% set sev_vulns = vulnerabilities | selectattr('severity', 'equalto', sev) | list %}
+      {% if sev_vulns %}
+      <div class="vuln-group">
+        <div class="vuln-group-title">
+          <span class="badge {{ sev }}">{{ sev }}</span>
+          {{ sev_vulns | length }} issue(s)
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Vulnerability Type</th>
+              <th>URL</th>
+              <th>Parameter</th>
+              <th>Payload</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in sev_vulns %}
+            <tr>
+              <td><b>{{ v.type }}</b></td>
+              <td class="url-cell">{{ v.url }}</td>
+              <td><code>{{ v.parameter }}</code></td>
+              <td class="payload-cell">{{ v.payload }}</td>
+              <td>{{ v.evidence }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="no-vuln">✓ No vulnerabilities detected in this scan</div>
+  {% endif %}
+
+  <!-- CRAWLED URLS -->
+  <div class="section-title" style="margin-top:48px;">02 — Crawled URLs ({{ crawled_urls | length }})</div>
+  <div class="url-list">
+    {% for url in crawled_urls %}
+    <div class="url-item">{{ url }}</div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>WebVulnScanner v1.0 — Educational Use Only</span>
+  <span>⚠ Only scan systems you own or have permission to test</span>
+</div>
+
+</body>
+</html>

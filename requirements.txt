@@ -1,0 +1,16 @@
+httpx[http2]
+beautifulsoup4
+lxml
+click
+rich
+jinja2
+aiofiles
+urllib3
+structlog
+pyyaml
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+websockets
+python-multipart

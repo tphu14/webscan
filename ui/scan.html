@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Scan — WebVulnScanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>WVS<span class="logo-bracket">]</span>
+    <span class="logo-sub">v3.0</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">DASHBOARD</a>
+    <a href="/scan" class="nav-link active">NEW SCAN</a>
+    <a href="/history" class="nav-link">HISTORY</a>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot online"></span>
+    <span class="status-text">ONLINE</span>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">LAUNCH SCAN</h1>
+      <p class="page-sub">Configure target and modules, then execute</p>
+    </div>
+  </div>
+
+  <div class="grid-scan">
+    <!-- Config panel -->
+    <div class="card" id="configPanel">
+      <div class="card-header">
+        <span class="card-title">TARGET CONFIGURATION</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">TARGET URL <span class="required">*</span></label>
+        <input type="text" id="targetUrl" class="form-input"
+               placeholder="https://target.example.com" autocomplete="off">
+        <span class="form-hint">Must start with http:// or https://</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CRAWL DEPTH</label>
+          <input type="number" id="scanDepth" class="form-input" value="3" min="1" max="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">MAX PAGES</label>
+          <input type="number" id="scanPages" class="form-input" value="50" min="5" max="200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">TIMEOUT (s)</label>
+          <input type="number" id="scanTimeout" class="form-input" value="10" min="5" max="60">
+        </div>
+      </div>
+
+      <!-- Module toggles -->
+      <div class="modules-header">
+        <span class="form-label">SCAN MODULES</span>
+        <div class="module-presets">
+          <button onclick="setPreset('all')" class="preset-btn">ALL</button>
+          <button onclick="setPreset('quick')" class="preset-btn">QUICK</button>
+          <button onclick="setPreset('none')" class="preset-btn">NONE</button>
+        </div>
+      </div>
+
+      <div class="modules-grid">
+        <!-- Phase 1 -->
+        <div class="module-section">
+          <div class="module-section-title">PHASE 1 — CORE</div>
+          <label class="toggle"><input type="checkbox" id="m_sqli" checked><span class="toggle-label">SQL Injection</span></label>
+          <label class="toggle"><input type="checkbox" id="m_xss" checked><span class="toggle-label">XSS</span></label>
+          <label class="toggle"><input type="checkbox" id="m_files" checked><span class="toggle-label">Sensitive Files</span></label>
+          <label class="toggle"><input type="checkbox" id="m_redirect" checked><span class="toggle-label">Open Redirect</span></label>
+          <label class="toggle"><input type="checkbox" id="m_headers" checked><span class="toggle-label">Security Headers</span></label>
+        </div>
+        <!-- Phase 2 -->
+        <div class="module-section">
+          <div class="module-section-title">PHASE 2 — ADVANCED</div>
+          <label class="toggle"><input type="checkbox" id="m_time_sqli" checked><span class="toggle-label">Blind SQLi (Time)</span></label>
+          <label class="toggle"><input type="checkbox" id="m_ssrf" checked><span class="toggle-label">SSRF</span></label>
+          <label class="toggle"><input type="checkbox" id="m_csrf" checked><span class="toggle-label">CSRF</span></label>
+          <label class="toggle"><input type="checkbox" id="m_idor" checked><span class="toggle-label">IDOR</span></label>
+          <label class="toggle"><input type="checkbox" id="m_jwt" checked><span class="toggle-label">JWT Analysis</span></label>
+          <label class="toggle"><input type="checkbox" id="m_cors" checked><span class="toggle-label">CORS</span></label>
+          <label class="toggle"><input type="checkbox" id="m_graphql" checked><span class="toggle-label">GraphQL</span></label>
+          <label class="toggle"><input type="checkbox" id="m_api" checked><span class="toggle-label">API Fuzzer</span></label>
+        </div>
+        <!-- Phase 3 -->
+        <div class="module-section">
+          <div class="module-section-title">PHASE 3 — DEEP</div>
+          <label class="toggle"><input type="checkbox" id="m_ssti" checked><span class="toggle-label">SSTI (RCE)</span></label>
+          <label class="toggle"><input type="checkbox" id="m_lfi" checked><span class="toggle-label">LFI / Path Traversal</span></label>
+          <label class="toggle"><input type="checkbox" id="m_xxe" checked><span class="toggle-label">XXE Injection</span></label>
+          <label class="toggle"><input type="checkbox" id="m_subdomain" checked><span class="toggle-label">Subdomain Takeover</span></label>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-full" id="launchBtn" onclick="launchScan()">
+        <span id="btnIcon">⬡</span> <span id="btnText">EXECUTE SCAN</span>
+      </button>
+    </div>
+
+    <!-- Live terminal -->
+    <div class="card terminal-card">
+      <div class="card-header">
+        <span class="card-title">LIVE OUTPUT</span>
+        <div class="terminal-controls">
+          <span class="term-dot red"></span>
+          <span class="term-dot yellow"></span>
+          <span class="term-dot green"></span>
+        </div>
+      </div>
+      <div class="terminal" id="terminal">
+        <div class="term-line dim">// Waiting for scan to start...</div>
+        <div class="term-line dim">// Configure target and press EXECUTE SCAN</div>
+      </div>
+      <div class="terminal-footer" id="termFooter"></div>
+    </div>
+  </div>
+
+  <!-- Results summary (shown after scan) -->
+  <div class="card" id="resultsCard" style="display:none">
+    <div class="card-header">
+      <span class="card-title">SCAN RESULTS</span>
+      <a id="viewFullLink" href="#" class="card-link">VIEW FULL REPORT →</a>
+    </div>
+    <div class="results-summary" id="resultsSummary"></div>
+    <div class="table-wrap" id="resultsTable"></div>
+  </div>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>
+const API = '';
+let ws = null;
+let currentScanId = null;
+
+function setPreset(p) {
+  const all = ['sqli','xss','files','redirect','headers',
+                'time_sqli','ssrf','csrf','idor','jwt','cors','graphql','api',
+                'ssti','lfi','xxe','subdomain'];
+  const quick = ['sqli','xss','files','redirect','headers'];
+  const active = p === 'all' ? all : p === 'quick' ? quick : [];
+  all.forEach(m => {
+    const el = document.getElementById(`m_${m}`);
+    if (el) el.checked = active.includes(m);
+  });
+}
+
+function getConfig() {
+  return {
+    target:         document.getElementById('targetUrl').value.trim(),
+    depth:          +document.getElementById('scanDepth').value,
+    pages:          +document.getElementById('scanPages').value,
+    timeout:        +document.getElementById('scanTimeout').value,
+    scan_sqli:      document.getElementById('m_sqli').checked,
+    scan_xss:       document.getElementById('m_xss').checked,
+    scan_files:     document.getElementById('m_files').checked,
+    scan_redirect:  document.getElementById('m_redirect').checked,
+    scan_headers:   document.getElementById('m_headers').checked,
+    scan_time_sqli: document.getElementById('m_time_sqli').checked,
+    scan_ssrf:      document.getElementById('m_ssrf').checked,
+    scan_csrf:      document.getElementById('m_csrf').checked,
+    scan_idor:      document.getElementById('m_idor').checked,
+    scan_jwt:       document.getElementById('m_jwt').checked,
+    scan_cors:      document.getElementById('m_cors').checked,
+    scan_graphql:   document.getElementById('m_graphql').checked,
+    scan_api:       document.getElementById('m_api').checked,
+    scan_ssti:      document.getElementById('m_ssti').checked,
+    scan_lfi:       document.getElementById('m_lfi').checked,
+    scan_xxe:       document.getElementById('m_xxe').checked,
+    scan_subdomain: document.getElementById('m_subdomain').checked,
+  };
+}
+
+async function launchScan() {
+  const cfg = getConfig();
+  if (!cfg.target) { termLog('ERROR: Target URL is required', 'error'); return; }
+  if (!cfg.target.startsWith('http')) { termLog('ERROR: Target must start with http:// or https://', 'error'); return; }
+
+  // Disable button
+  document.getElementById('launchBtn').disabled = true;
+  document.getElementById('btnText').textContent = 'SCANNING...';
+  document.getElementById('btnIcon').textContent = '◈';
+  document.getElementById('resultsCard').style.display = 'none';
+
+  clearTerminal();
+  termLog(`Initiating scan: ${cfg.target}`, 'info');
+  termLog(`Modules: ${Object.entries(cfg).filter(([k,v])=>k.startsWith('scan_')&&v).length}/17 active`, 'info');
+  termLog('────────────────────────────────', 'dim');
+
+  try {
+    const res = await fetch(`${API}/api/scans`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+    const data = await res.json();
+    if (!res.ok) { termLog(`ERROR: ${data.detail}`, 'error'); resetBtn(); return; }
+
+    currentScanId = data.scan_id;
+    termLog(`Scan ID: #${currentScanId} — connecting stream...`, 'dim');
+
+    // WebSocket progress stream
+    ws = new WebSocket(`ws://${location.host}/ws/scan/${currentScanId}`);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'ping')   return; // keepalive, ignore
+      if (msg.type === 'log')    termLog(msg.data.message, 'output');
+      else if (msg.type === 'status') termLog(msg.data.message, 'info');
+      else if (msg.type === 'done')   onScanDone(msg.data);
+      else if (msg.type === 'error')  { termLog(`ERROR: ${msg.data.message}`, 'error'); resetBtn(); }
+    };
+    ws.onerror = (e) => { termLog('WebSocket connection error — scan may still be running', 'error'); };
+    ws.onclose = (e) => {
+      if (e.code !== 1000 && document.getElementById('launchBtn').disabled) {
+        termLog('Connection lost — check terminal for scan progress', 'error');
+        resetBtn();
+      }
+    };
+  } catch(e) {
+    termLog(`Failed to start scan: ${e.message}`, 'error');
+    resetBtn();
+  }
+}
+
+async function onScanDone(data) {
+  termLog('────────────────────────────────', 'dim');
+  termLog(`SCAN COMPLETE — ${data.total} findings (Risk Score: ${data.risk_score})`, 'success');
+  termLog(`  CRITICAL: ${data.critical}  HIGH: ${data.high}  MEDIUM: ${data.medium}  LOW: ${data.low}`, 'info');
+  resetBtn();
+
+  // Show results
+  document.getElementById('viewFullLink').href = `/history?scan=${data.scan_id}`;
+  document.getElementById('resultsCard').style.display = '';
+
+  // Load and render vulnerabilities
+  const r = await fetch(`${API}/api/scans/${data.scan_id}`);
+  const scan = await r.json();
+  renderResults(scan);
+}
+
+function renderResults(scan) {
+  document.getElementById('resultsSummary').innerHTML = `
+    <div class="result-stat critical">${scan.critical} <span>CRITICAL</span></div>
+    <div class="result-stat orange">${scan.high} <span>HIGH</span></div>
+    <div class="result-stat yellow">${scan.medium} <span>MEDIUM</span></div>
+    <div class="result-stat cyan">${scan.low} <span>LOW</span></div>
+    <div class="result-stat dim">${scan.risk_score} <span>RISK SCORE</span></div>
+  `;
+  document.getElementById('resultsTable').innerHTML = renderVulnTable(scan.vulnerabilities);
+}
+
+function termLog(msg, cls = '') {
+  const t = document.getElementById('terminal');
+  const d = document.createElement('div');
+  d.className = `term-line ${cls}`;
+  d.textContent = `> ${msg}`;
+  t.appendChild(d);
+  t.scrollTop = t.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+}
+
+function resetBtn() {
+  const btn = document.getElementById('launchBtn');
+  btn.disabled = false;
+  document.getElementById('btnText').textContent = 'EXECUTE SCAN';
+  document.getElementById('btnIcon').textContent = '⬡';
+}
+</script>
+</body>
+</html>

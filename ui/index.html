@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebVulnScanner — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<!-- Scan-line overlay -->
+<div class="scanlines"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>WVS<span class="logo-bracket">]</span>
+    <span class="logo-sub">v3.0</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link active">DASHBOARD</a>
+    <a href="/scan" class="nav-link">NEW SCAN</a>
+    <a href="/history" class="nav-link">HISTORY</a>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot" id="apiStatus"></span>
+    <span class="status-text" id="apiStatusText">CONNECTING</span>
+  </div>
+</nav>
+
+<main class="container">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">COMMAND CENTER</h1>
+      <p class="page-sub">Web Vulnerability Scanner — Pentest Dashboard</p>
+    </div>
+    <a href="/scan" class="btn-primary">
+      <span class="btn-icon">⬡</span> NEW SCAN
+    </a>
+  </div>
+
+  <!-- Global stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-label">TOTAL SCANS</div>
+      <div class="stat-value" id="statScans">—</div>
+      <div class="stat-bar"><div class="stat-bar-fill cyan" style="width:100%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CRITICAL</div>
+      <div class="stat-value critical" id="statCritical">—</div>
+      <div class="stat-bar"><div class="stat-bar-fill red" id="barCritical" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">HIGH</div>
+      <div class="stat-value orange" id="statHigh">—</div>
+      <div class="stat-bar"><div class="stat-bar-fill orange" id="barHigh" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">MEDIUM</div>
+      <div class="stat-value yellow" id="statMedium">—</div>
+      <div class="stat-bar"><div class="stat-bar-fill yellow" id="barMedium" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">AVG RISK SCORE</div>
+      <div class="stat-value cyan" id="statAvgRisk">—</div>
+      <div class="stat-bar"><div class="stat-bar-fill cyan" id="barAvgRisk" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Charts + Recent scans -->
+  <div class="grid-2col">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">VULNERABILITY TYPES</span>
+        <span class="card-badge">TOP 5</span>
+      </div>
+      <canvas id="vulnTypeChart" height="220"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">SEVERITY BREAKDOWN</span>
+        <span class="card-badge">ALL TIME</span>
+      </div>
+      <canvas id="severityChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent scans table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">RECENT SCANS</span>
+      <a href="/history" class="card-link">VIEW ALL →</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>TARGET</th><th>STATUS</th>
+            <th>CRITICAL</th><th>HIGH</th><th>MEDIUM</th>
+            <th>RISK</th><th>TIME</th><th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody id="recentScans">
+          <tr><td colspan="9" class="table-empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>
+const API = '';
+
+async function loadDashboard() {
+  // API health check
+  try {
+    const r = await fetch(`${API}/api/stats`);
+    if (r.ok) {
+      setStatus('online');
+      const stats = await r.json();
+      renderStats(stats);
+      renderCharts(stats);
+    }
+  } catch { setStatus('offline'); }
+
+  // Recent scans
+  try {
+    const r = await fetch(`${API}/api/scans`);
+    const scans = await r.json();
+    renderRecentScans(scans.slice(0, 8));
+  } catch(e) {
+    document.getElementById('recentScans').innerHTML =
+      `<tr><td colspan="9" class="table-empty">No scans yet — <a href="/scan">start one</a></td></tr>`;
+  }
+}
+
+function setStatus(s) {
+  const dot  = document.getElementById('apiStatus');
+  const text = document.getElementById('apiStatusText');
+  dot.className  = `status-dot ${s}`;
+  text.textContent = s === 'online' ? 'ONLINE' : 'OFFLINE';
+}
+
+function renderStats(s) {
+  document.getElementById('statScans').textContent   = s.total_scans;
+  document.getElementById('statCritical').textContent = s.critical;
+  document.getElementById('statHigh').textContent     = s.high;
+  document.getElementById('statMedium').textContent   = s.medium;
+  document.getElementById('statAvgRisk').textContent  = s.avg_risk;
+  const total = s.critical + s.high + s.medium + s.low || 1;
+  document.getElementById('barCritical').style.width  = `${(s.critical/total)*100}%`;
+  document.getElementById('barHigh').style.width      = `${(s.high/total)*100}%`;
+  document.getElementById('barMedium').style.width    = `${(s.medium/total)*100}%`;
+  document.getElementById('barAvgRisk').style.width   = `${Math.min(s.avg_risk, 100)}%`;
+}
+
+function renderCharts(stats) {
+  const chartDefaults = {
+    plugins: { legend: { labels: { color: '#7DF9C8', font: { family: 'Share Tech Mono', size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#4a9980' }, grid: { color: '#1a2e28' } },
+      y: { ticks: { color: '#4a9980' }, grid: { color: '#1a2e28' } },
+    }
+  };
+
+  // Top vuln types bar chart
+  if (stats.top_vuln_types?.length) {
+    new Chart(document.getElementById('vulnTypeChart'), {
+      type: 'bar',
+      data: {
+        labels: stats.top_vuln_types.map(t => t[0].replace(/\(.*\)/, '').trim()),
+        datasets: [{
+          data: stats.top_vuln_types.map(t => t[1]),
+          backgroundColor: ['#ff4757','#ff6b35','#ffa502','#7DF9C8','#2ed573'],
+          borderRadius: 2,
+        }]
+      },
+      options: { ...chartDefaults, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // Severity doughnut
+  new Chart(document.getElementById('severityChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Critical', 'High', 'Medium', 'Low'],
+      datasets: [{
+        data: [stats.critical, stats.high, stats.medium, stats.low],
+        backgroundColor: ['#ff4757','#ff6b35','#ffa502','#7DF9C8'],
+        borderColor: '#0a1a15', borderWidth: 3,
+      }]
+    },
+    options: {
+      plugins: { legend: { labels: { color: '#7DF9C8', font: { family: 'Share Tech Mono', size: 11 } } } }
+    }
+  });
+}
+
+function renderRecentScans(scans) {
+  if (!scans.length) {
+    document.getElementById('recentScans').innerHTML =
+      `<tr><td colspan="9" class="table-empty">No scans yet — <a href="/scan">start one</a></td></tr>`;
+    return;
+  }
+  document.getElementById('recentScans').innerHTML = scans.map(s => `
+    <tr>
+      <td class="mono">#${s.id}</td>
+      <td class="target-cell" title="${s.target}">${truncate(s.target, 35)}</td>
+      <td><span class="badge badge-${s.status}">${s.status.toUpperCase()}</span></td>
+      <td class="critical">${s.critical}</td>
+      <td class="orange">${s.high}</td>
+      <td class="yellow">${s.medium}</td>
+      <td class="risk-cell ${riskClass(s.risk_score)}">${s.risk_score}</td>
+      <td class="mono dim">${s.duration ? s.duration.toFixed(0)+'s' : '—'}</td>
+      <td>
+        <a href="/history?scan=${s.id}" class="action-link">VIEW</a>
+        ${s.status==='done' ? `<a href="#" onclick="deleteScan(${s.id})" class="action-link danger">DEL</a>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function deleteScan(id) {
+  if (!confirm(`Delete scan #${id}?`)) return;
+  await fetch(`${API}/api/scans/${id}`, { method: 'DELETE' });
+  loadDashboard();
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
+function riskClass(r) { return r >= 70 ? 'critical' : r >= 40 ? 'orange' : r >= 20 ? 'yellow' : 'cyan'; }
+
+loadDashboard();
+setInterval(loadDashboard, 10000);
+</script>
+</body>
+</html>

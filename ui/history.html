@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>History — WebVulnScanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>WVS<span class="logo-bracket">]</span>
+    <span class="logo-sub">v3.0</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">DASHBOARD</a>
+    <a href="/scan" class="nav-link">NEW SCAN</a>
+    <a href="/history" class="nav-link active">HISTORY</a>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot online"></span>
+    <span class="status-text">ONLINE</span>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">SCAN HISTORY</h1>
+      <p class="page-sub">Browse, filter, compare past scans</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" id="compareBtn" onclick="compareSelected()" disabled>
+        COMPARE SELECTED
+      </button>
+      <a href="/scan" class="btn-primary">⬡ NEW SCAN</a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card filter-bar">
+    <input type="text" id="filterTarget" class="form-input" placeholder="Filter by target..." oninput="applyFilters()">
+    <select id="filterStatus" class="form-input" onchange="applyFilters()">
+      <option value="">ALL STATUS</option>
+      <option value="done">DONE</option>
+      <option value="running">RUNNING</option>
+      <option value="failed">FAILED</option>
+    </select>
+    <select id="filterSeverity" class="form-input" onchange="applyFilters()">
+      <option value="">ALL SEVERITY</option>
+      <option value="critical">HAS CRITICAL</option>
+      <option value="high">HAS HIGH</option>
+    </select>
+    <button class="btn-secondary" onclick="clearFilters()">CLEAR</button>
+  </div>
+
+  <!-- Scans table -->
+  <div class="card" id="scansCard">
+    <div class="card-header">
+      <span class="card-title">ALL SCANS</span>
+      <span class="card-badge" id="scanCount">0 scans</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+            <th>ID</th><th>TARGET</th><th>STATUS</th>
+            <th>CRITICAL</th><th>HIGH</th><th>MEDIUM</th><th>LOW</th>
+            <th>RISK</th><th>DURATION</th><th>DATE</th><th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody id="scansTable">
+          <tr><td colspan="12" class="table-empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scan detail panel -->
+  <div class="card" id="detailCard" style="display:none">
+    <div class="card-header">
+      <span class="card-title" id="detailTitle">SCAN DETAIL</span>
+      <div class="header-actions">
+        <button class="btn-secondary" onclick="exportCSV()" id="exportBtn">EXPORT CSV</button>
+        <button class="btn-secondary" onclick="closeDetail()">CLOSE ✕</button>
+      </div>
+    </div>
+
+    <!-- Vuln filters -->
+    <div class="filter-bar slim">
+      <select id="vulnSevFilter" class="form-input" onchange="filterVulns()">
+        <option value="">ALL SEVERITY</option>
+        <option value="CRITICAL">CRITICAL</option>
+        <option value="HIGH">HIGH</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="LOW">LOW</option>
+      </select>
+      <input type="text" id="vulnTypeFilter" class="form-input" placeholder="Filter by type..." oninput="filterVulns()">
+      <input type="text" id="vulnUrlFilter" class="form-input" placeholder="Filter by URL..." oninput="filterVulns()">
+    </div>
+
+    <div class="results-summary" id="detailSummary"></div>
+    <div class="table-wrap" id="detailTable"></div>
+  </div>
+
+  <!-- Compare panel -->
+  <div class="card" id="compareCard" style="display:none">
+    <div class="card-header">
+      <span class="card-title">SCAN COMPARISON</span>
+      <button class="btn-secondary" onclick="closeCompare()">CLOSE ✕</button>
+    </div>
+    <div id="compareContent"></div>
+  </div>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>
+const API = '';
+let allScans = [];
+let selectedIds = new Set();
+let currentScan = null;
+
+async function loadHistory() {
+  const r = await fetch(`${API}/api/scans`);
+  allScans = await r.json();
+  applyFilters();
+
+  // Auto-open scan if ?scan=ID in URL
+  const params = new URLSearchParams(location.search);
+  if (params.has('scan')) openDetail(+params.get('scan'));
+}
+
+function applyFilters() {
+  const target = document.getElementById('filterTarget').value.toLowerCase();
+  const status = document.getElementById('filterStatus').value;
+  const sev    = document.getElementById('filterSeverity').value;
+
+  let filtered = allScans.filter(s => {
+    if (target && !s.target.toLowerCase().includes(target)) return false;
+    if (status && s.status !== status) return false;
+    if (sev === 'critical' && s.critical === 0) return false;
+    if (sev === 'high'     && s.high === 0)     return false;
+    return true;
+  });
+
+  document.getElementById('scanCount').textContent = `${filtered.length} scans`;
+  renderScansTable(filtered);
+}
+
+function clearFilters() {
+  document.getElementById('filterTarget').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterSeverity').value = '';
+  applyFilters();
+}
+
+function renderScansTable(scans) {
+  if (!scans.length) {
+    document.getElementById('scansTable').innerHTML =
+      `<tr><td colspan="12" class="table-empty">No scans match filters</td></tr>`;
+    return;
+  }
+  document.getElementById('scansTable').innerHTML = scans.map(s => `
+    <tr class="${selectedIds.has(s.id) ? 'selected-row' : ''}">
+      <td><input type="checkbox" ${selectedIds.has(s.id)?'checked':''}
+            onchange="toggleSelect(${s.id}, this)"></td>
+      <td class="mono">#${s.id}</td>
+      <td class="target-cell" title="${s.target}">${truncate(s.target, 40)}</td>
+      <td><span class="badge badge-${s.status}">${s.status.toUpperCase()}</span></td>
+      <td class="critical">${s.critical}</td>
+      <td class="orange">${s.high}</td>
+      <td class="yellow">${s.medium}</td>
+      <td class="cyan">${s.low}</td>
+      <td class="${riskClass(s.risk_score)}">${s.risk_score}</td>
+      <td class="mono dim">${s.duration ? s.duration.toFixed(0)+'s' : '—'}</td>
+      <td class="mono dim">${formatDate(s.started_at)}</td>
+      <td>
+        <a href="#" onclick="openDetail(${s.id})" class="action-link">DETAIL</a>
+        ${s.status==='done'?`<a href="#" onclick="deleteScan(${s.id})" class="action-link danger">DEL</a>`:''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function toggleSelect(id, cb) {
+  if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+  document.getElementById('compareBtn').disabled = selectedIds.size !== 2;
+  applyFilters();
+}
+
+function toggleSelectAll(cb) {
+  const visibleScans = allScans;
+  visibleScans.forEach(s => { if (cb.checked) selectedIds.add(s.id); else selectedIds.delete(s.id); });
+  document.getElementById('compareBtn').disabled = selectedIds.size !== 2;
+  applyFilters();
+}
+
+async function openDetail(id) {
+  const r = await fetch(`${API}/api/scans/${id}`);
+  currentScan = await r.json();
+  document.getElementById('detailTitle').textContent = `SCAN #${id} — ${currentScan.target}`;
+  document.getElementById('detailSummary').innerHTML = `
+    <div class="result-stat critical">${currentScan.critical} <span>CRITICAL</span></div>
+    <div class="result-stat orange">${currentScan.high} <span>HIGH</span></div>
+    <div class="result-stat yellow">${currentScan.medium} <span>MEDIUM</span></div>
+    <div class="result-stat cyan">${currentScan.low} <span>LOW</span></div>
+    <div class="result-stat dim">${currentScan.risk_score} <span>RISK</span></div>
+    <div class="result-stat dim">${currentScan.duration?.toFixed(0) || '—'}s <span>DURATION</span></div>
+  `;
+  filterVulns();
+  document.getElementById('detailCard').style.display = '';
+  document.getElementById('detailCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function filterVulns() {
+  if (!currentScan) return;
+  const sev  = document.getElementById('vulnSevFilter').value;
+  const type = document.getElementById('vulnTypeFilter').value.toLowerCase();
+  const url  = document.getElementById('vulnUrlFilter').value.toLowerCase();
+
+  const vulns = currentScan.vulnerabilities.filter(v => {
+    if (sev  && v.severity !== sev) return false;
+    if (type && !v.type.toLowerCase().includes(type)) return false;
+    if (url  && !v.url.toLowerCase().includes(url)) return false;
+    return true;
+  });
+  document.getElementById('detailTable').innerHTML = renderVulnTable(vulns);
+}
+
+function closeDetail() {
+  document.getElementById('detailCard').style.display = 'none';
+  currentScan = null;
+}
+
+async function compareSelected() {
+  const [id1, id2] = [...selectedIds];
+  const r = await fetch(`${API}/api/scans/compare/${id1}/${id2}`);
+  const data = await r.json();
+
+  const improve = data.improvement;
+  document.getElementById('compareContent').innerHTML = `
+    <div class="compare-grid">
+      <div class="compare-scan">
+        <div class="compare-scan-title">SCAN #${id1}</div>
+        <div class="mono dim">${data.scan1.target}</div>
+        <div class="compare-stats">
+          <span class="critical">C:${data.scan1.critical}</span>
+          <span class="orange">H:${data.scan1.high}</span>
+          <span class="yellow">M:${data.scan1.medium}</span>
+          <span>Risk:${data.scan1.risk_score}</span>
+        </div>
+      </div>
+      <div class="compare-arrow">→</div>
+      <div class="compare-scan">
+        <div class="compare-scan-title">SCAN #${id2}</div>
+        <div class="mono dim">${data.scan2.target}</div>
+        <div class="compare-stats">
+          <span class="critical">C:${data.scan2.critical}</span>
+          <span class="orange">H:${data.scan2.high}</span>
+          <span class="yellow">M:${data.scan2.medium}</span>
+          <span>Risk:${data.scan2.risk_score}</span>
+        </div>
+      </div>
+    </div>
+    <div class="compare-results">
+      <div class="compare-item ${data.fixed_in_scan2.length?'positive':''}">
+        <div class="compare-count">${data.fixed_in_scan2.length}</div>
+        <div class="compare-label">FIXED / RESOLVED</div>
+      </div>
+      <div class="compare-item ${data.new_in_scan2.length?'negative':''}">
+        <div class="compare-count">${data.new_in_scan2.length}</div>
+        <div class="compare-label">NEW FINDINGS</div>
+      </div>
+      <div class="compare-item">
+        <div class="compare-count">${data.persisting.length}</div>
+        <div class="compare-label">PERSISTING</div>
+      </div>
+      <div class="compare-item ${improve>0?'positive':improve<0?'negative':''}">
+        <div class="compare-count">${improve > 0 ? '+' : ''}${improve}</div>
+        <div class="compare-label">NET IMPROVEMENT</div>
+      </div>
+    </div>
+    ${data.new_in_scan2.length ? `
+      <div class="compare-detail">
+        <div class="form-label">NEW IN SCAN #${id2}:</div>
+        ${data.new_in_scan2.map(v => `<div class="compare-vuln-item">${v}</div>`).join('')}
+      </div>` : ''}
+  `;
+  document.getElementById('compareCard').style.display = '';
+  document.getElementById('compareCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeCompare() {
+  document.getElementById('compareCard').style.display = 'none';
+}
+
+function exportCSV() {
+  if (!currentScan) return;
+  const headers = ['Type','Severity','URL','Parameter','Evidence','CVSS','CWE'];
+  const rows = currentScan.vulnerabilities.map(v => [
+    `"${v.type}"`, v.severity, `"${v.url}"`,
+    `"${v.parameter||''}"`, `"${(v.evidence||'').replace(/"/g,"'")}"`,
+    v.cvss_score||'', v.cwe||''
+  ].join(','));
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `scan_${currentScan.id}_${currentScan.target.replace(/[^a-z0-9]/gi,'_')}.csv`;
+  a.click();
+}
+
+async function deleteScan(id) {
+  if (!confirm(`Delete scan #${id}? This cannot be undone.`)) return;
+  await fetch(`${API}/api/scans/${id}`, { method: 'DELETE' });
+  selectedIds.delete(id);
+  loadHistory();
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString().slice(0,5)}`;
+}
+
+loadHistory();
+setInterval(() => {
+  // Refresh if any scan is running
+  if (allScans.some(s => s.status === 'running')) loadHistory();
+}, 5000);
+</script>
+</body>
+</html>

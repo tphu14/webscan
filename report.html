@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vulnerability Report — http://testphp.vulnweb.com</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #ff3c5f;
+    --accent2: #f59e0b;
+    --accent3: #10b981;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --critical: #ff3c5f;
+    --high: #f97316;
+    --medium: #f59e0b;
+    --low: #10b981;
+    --info: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1f 50%, #0a0f1a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 64px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,60,95,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-meta {
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex; gap: 32px; flex-wrap: wrap;
+  }
+  .header-meta b { color: var(--text); }
+
+  /* STATS GRID */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-card {
+    background: var(--surface);
+    padding: 32px 28px;
+    position: relative;
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 2px;
+  }
+  .stat-card.critical::after { background: var(--critical); }
+  .stat-card.high::after { background: var(--high); }
+  .stat-card.medium::after { background: var(--medium); }
+  .stat-card.low::after { background: var(--low); }
+  .stat-card.total::after { background: var(--info); }
+
+  .stat-num {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .stat-card.critical .stat-num { color: var(--critical); }
+  .stat-card.high .stat-num { color: var(--high); }
+  .stat-card.medium .stat-num { color: var(--medium); }
+  .stat-card.low .stat-num { color: var(--low); }
+  .stat-card.total .stat-num { color: var(--info); }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* MAIN CONTENT */
+  .main { padding: 48px 64px; max-width: 1400px; }
+
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* VULN TABLE */
+  .vuln-group { margin-bottom: 48px; }
+  .vuln-group-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .badge.CRITICAL { background: rgba(255,60,95,0.2); color: var(--critical); border: 1px solid rgba(255,60,95,0.4); }
+  .badge.HIGH { background: rgba(249,115,22,0.2); color: var(--high); border: 1px solid rgba(249,115,22,0.4); }
+  .badge.MEDIUM { background: rgba(245,158,11,0.2); color: var(--medium); border: 1px solid rgba(245,158,11,0.4); }
+  .badge.LOW { background: rgba(16,185,129,0.2); color: var(--low); border: 1px solid rgba(16,185,129,0.4); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+  }
+  th {
+    padding: 14px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  td {
+    padding: 16px;
+    vertical-align: top;
+  }
+  td.url-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    word-break: break-all;
+    max-width: 300px;
+  }
+  td.payload-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 200px;
+    word-break: break-all;
+  }
+
+  /* URLS SECTION */
+  .url-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 8px;
+    margin-top: 0;
+  }
+  .url-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    word-break: break-all;
+  }
+
+  .no-vuln {
+    padding: 32px;
+    text-align: center;
+    color: var(--low);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    border: 1px dashed rgba(16,185,129,0.3);
+    border-radius: 4px;
+  }
+
+  .footer {
+    padding: 32px 64px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">// Security Assessment Report</div>
+  <h1>Vulnerability<br><span>Scanner Report</span></h1>
+  <div class="header-meta">
+    <span>Target: <b>http://testphp.vulnweb.com</b></span>
+    <span>Scanned: <b>2026-03-04 16:20:51</b></span>
+    <span>URLs Crawled: <b>24</b></span>
+    <span>Forms Found: <b>15</b></span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-card total">
+    <div class="stat-num">24</div>
+    <div class="stat-label">Total Issues</div>
+  </div>
+  <div class="stat-card critical">
+    <div class="stat-num">0</div>
+    <div class="stat-label">Critical</div>
+  </div>
+  <div class="stat-card high">
+    <div class="stat-num">7</div>
+    <div class="stat-label">High</div>
+  </div>
+  <div class="stat-card medium">
+    <div class="stat-num">11</div>
+    <div class="stat-label">Medium</div>
+  </div>
+  <div class="stat-card low">
+    <div class="stat-num">6</div>
+    <div class="stat-label">Low</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- VULNERABILITIES -->
+  <div class="section-title">01 — Discovered Vulnerabilities</div>
+
+  
+    
+    
+      
+      
+    
+      
+      
+      <div class="vuln-group">
+        <div class="vuln-group-title">
+          <span class="badge HIGH">HIGH</span>
+          7 issue(s)
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Vulnerability Type</th>
+              <th>URL</th>
+              <th>Parameter</th>
+              <th>Payload</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td><b>SQL Injection (Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/search.php?test=query</td>
+              <td><code>searchFor</code></td>
+              <td class="payload-cell">1' ORDER BY 1--</td>
+              <td>Database error in form POST submission</td>
+            </tr>
+            
+            <tr>
+              <td><b>SQL Injection (Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/userinfo.php</td>
+              <td><code>uname</code></td>
+              <td class="payload-cell">'</td>
+              <td>Database error in form POST submission</td>
+            </tr>
+            
+            <tr>
+              <td><b>SQL Injection (Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/userinfo.php</td>
+              <td><code>pass</code></td>
+              <td class="payload-cell">'</td>
+              <td>Database error in form POST submission</td>
+            </tr>
+            
+            <tr>
+              <td><b>SQL Injection (Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/secured/newuser.php</td>
+              <td><code>uuname</code></td>
+              <td class="payload-cell">'</td>
+              <td>Database error in form POST submission</td>
+            </tr>
+            
+            <tr>
+              <td><b>Sensitive File Exposure</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/admin</td>
+              <td><code>N/A</code></td>
+              <td class="payload-cell">/admin</td>
+              <td>HTTP 200</td>
+            </tr>
+            
+            <tr>
+              <td><b>Sensitive File Exposure</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/admin/</td>
+              <td><code>N/A</code></td>
+              <td class="payload-cell">/admin/</td>
+              <td>HTTP 200</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: Content-Security-Policy</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>Content-Security-Policy</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Prevents XSS and data injection. Recommended: default-src 'self'</td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </div>
+      
+    
+      
+      
+      <div class="vuln-group">
+        <div class="vuln-group-title">
+          <span class="badge MEDIUM">MEDIUM</span>
+          11 issue(s)
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Vulnerability Type</th>
+              <th>URL</th>
+              <th>Parameter</th>
+              <th>Payload</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td><b>XSS (Reflected via Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/search.php?test=query</td>
+              <td><code>searchFor</code></td>
+              <td class="payload-cell"><script>alert(1)</script></td>
+              <td>Payload reflected in form POST response</td>
+            </tr>
+            
+            <tr>
+              <td><b>XSS (Reflected via Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/guestbook.php</td>
+              <td><code>text</code></td>
+              <td class="payload-cell"><script>alert(1)</script></td>
+              <td>Payload reflected in form POST response</td>
+            </tr>
+            
+            <tr>
+              <td><b>XSS (Reflected via Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/userinfo.php</td>
+              <td><code>uname</code></td>
+              <td class="payload-cell">'"><script>alert(1)</script></td>
+              <td>Payload reflected in form POST response</td>
+            </tr>
+            
+            <tr>
+              <td><b>XSS (Reflected via Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/userinfo.php</td>
+              <td><code>pass</code></td>
+              <td class="payload-cell">'"><script>alert(1)</script></td>
+              <td>Payload reflected in form POST response</td>
+            </tr>
+            
+            <tr>
+              <td><b>XSS (Reflected via Form)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/secured/newuser.php</td>
+              <td><code>uuname</code></td>
+              <td class="payload-cell"><script>alert(1)</script></td>
+              <td>Payload reflected in form POST response</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: X-Frame-Options</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>X-Frame-Options</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Prevents clickjacking attacks. Recommended: DENY or SAMEORIGIN</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: Strict-Transport-Security</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>Strict-Transport-Security</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Enforces HTTPS (HSTS). Recommended: max-age=31536000; includeSubDomains</td>
+            </tr>
+            
+            <tr>
+              <td><b>Cross-Site Request Forgery (CSRF)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/search.php?test=query</td>
+              <td><code>form</code></td>
+              <td class="payload-cell">POST form without CSRF token</td>
+              <td>No CSRF token in POST form — no SameSite cookie protection. Inputs: ['searchFor', 'goButton']</td>
+            </tr>
+            
+            <tr>
+              <td><b>Cross-Site Request Forgery (CSRF)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/guestbook.php</td>
+              <td><code>form</code></td>
+              <td class="payload-cell">POST form without CSRF token</td>
+              <td>No CSRF token in POST form — no SameSite cookie protection. Inputs: ['name', 'text', 'submit']</td>
+            </tr>
+            
+            <tr>
+              <td><b>Cross-Site Request Forgery (CSRF)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/userinfo.php</td>
+              <td><code>form</code></td>
+              <td class="payload-cell">POST form without CSRF token</td>
+              <td>No CSRF token in POST form — no SameSite cookie protection. Inputs: ['uname', 'pass']</td>
+            </tr>
+            
+            <tr>
+              <td><b>Cross-Site Request Forgery (CSRF)</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com/secured/newuser.php</td>
+              <td><code>form</code></td>
+              <td class="payload-cell">POST form without CSRF token</td>
+              <td>No CSRF token in POST form — no SameSite cookie protection. Inputs: ['uuname', 'upass', 'upass2', 'urname', 'ucc', 'uemail', 'uphone', 'uaddress', 'signup']</td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </div>
+      
+    
+      
+      
+      <div class="vuln-group">
+        <div class="vuln-group-title">
+          <span class="badge LOW">LOW</span>
+          6 issue(s)
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Vulnerability Type</th>
+              <th>URL</th>
+              <th>Parameter</th>
+              <th>Payload</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td><b>Missing Security Header: X-Content-Type-Options</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>X-Content-Type-Options</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Prevents MIME sniffing. Recommended: nosniff</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: X-XSS-Protection</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>X-XSS-Protection</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Browser XSS filter (legacy). Recommended: 1; mode=block</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: Referrer-Policy</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>Referrer-Policy</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Controls referrer information. Recommended: strict-origin-when-cross-origin</td>
+            </tr>
+            
+            <tr>
+              <td><b>Missing Security Header: Permissions-Policy</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>Permissions-Policy</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Controls browser features access. Recommended: geolocation=(), microphone=()</td>
+            </tr>
+            
+            <tr>
+              <td><b>Information Disclosure: Server</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>Server</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Exposes server software version. Value: nginx/1.19.0</td>
+            </tr>
+            
+            <tr>
+              <td><b>Information Disclosure: X-Powered-By</b></td>
+              <td class="url-cell">http://testphp.vulnweb.com</td>
+              <td><code>X-Powered-By</code></td>
+              <td class="payload-cell">N/A</td>
+              <td>Exposes technology stack. Value: PHP/5.6.40-38+ubuntu20.04.1+deb.sury.org+1</td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </div>
+      
+    
+  
+
+  <!-- CRAWLED URLS -->
+  <div class="section-title" style="margin-top:48px;">02 — Crawled URLs (24)</div>
+  <div class="url-list">
+    
+    <div class="url-item">http://testphp.vulnweb.com</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/index.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/categories.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/artists.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/disclaimer.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/cart.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/guestbook.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/AJAX/index.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/login.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/userinfo.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/privacy.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/hpp/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/listproducts.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/signup.php</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/network-attached-storage-dlink/1/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/web-camera-a4tech/2/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/color-printer/3/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/BuyProduct-1/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/RateProduct-1.html</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/BuyProduct-2/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/RateProduct-2.html</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/BuyProduct-3/</div>
+    
+    <div class="url-item">http://testphp.vulnweb.com/Mod_Rewrite_Shop/RateProduct-3.html</div>
+    
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>WebVulnScanner v1.0 — Educational Use Only</span>
+  <span>⚠ Only scan systems you own or have permission to test</span>
+</div>
+
+</body>
+</html>

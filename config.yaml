@@ -1,0 +1,36 @@
+# config.yaml — WebVulnScanner Phase 1 Configuration
+
+scanner:
+  max_depth: 3
+  max_pages: 50
+  timeout: 10
+  concurrency: 8          # Max parallel requests
+  rate_limit: 8.0         # Requests per second
+  burst: 15               # Burst capacity
+  user_agent: "WebVulnScanner/2.0 (Security Research)"
+  verify_ssl: false
+  follow_redirects: true
+
+modules:
+  sqli:         true
+  xss:          true
+  sensitive_files: true
+  open_redirect: true
+  headers:      true
+  waf_detect:   true      # NEW Phase 1
+  blind_sqli:   true      # NEW Phase 1
+
+detection:
+  use_response_differ:    true   # NEW Phase 1
+  use_payload_mutator:    true   # NEW Phase 1
+  confidence_threshold:   0.65   # Minimum confidence score to report
+  differ_threshold:       0.93   # similarity < này → khác biệt đáng kể
+
+reporting:
+  cvss_scoring:    true          # NEW Phase 1
+  include_waf_info: true
+  output_dir: "."
+
+logging:
+  level: "INFO"             # DEBUG / INFO / WARNING
+  log_file: null            # null = console only, "scan.log" = file
