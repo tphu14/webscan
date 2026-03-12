@@ -169,8 +169,8 @@ http://localhost:8080/WebGoat    WebGoat
 👤 Author
 WebVulnScanner was built as an educational security research project.
 
-🐙 GitHub: @yourusername
-📧 Contact: your.email@example.com
+🐙 GitHub: @tfunov14
+📧 Contact: tfunov14@gmail.com
 
 
 📄 License
